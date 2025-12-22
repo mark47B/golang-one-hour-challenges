@@ -7,7 +7,7 @@ import (
 
 func fanIn(ctx context.Context, chs ...<-chan string) <-chan string {
 	ctxWithC, cancelF := context.WithCancel(ctx)
-	out := make(chan string)
+	out := make(chan string, 1) // buffer
 	var wg sync.WaitGroup
 
 	wg.Add(len(chs))
@@ -22,7 +22,11 @@ func fanIn(ctx context.Context, chs ...<-chan string) <-chan string {
 					if !ok {
 						return
 					}
-					out <- val
+					select { // if chan blocked
+					case out <- val:
+					case <-ctxWithC.Done():
+						return
+					}
 				}
 			}
 		}(ctxWithC, ch, out)
@@ -35,8 +39,4 @@ func fanIn(ctx context.Context, chs ...<-chan string) <-chan string {
 	}()
 
 	return out
-}
-
-func generateData(id int) <-chan string {
-
 }
