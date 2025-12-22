@@ -11,7 +11,9 @@ func fanOut[T any](
 	in <-chan T,
 	n int,
 ) []<-chan T {
-	ctxWithC, cancel := context.WithCancel(ctx)
+	if n <= 0 {
+		return nil
+	}
 	outs := make([]chan T, n)
 	for i := 0; i < n; i++ {
 		outs[i] = make(chan T)
@@ -28,20 +30,26 @@ func fanOut[T any](
 	wg.Add(1)
 	go func(ctx context.Context, outs []chan<- T) {
 		defer wg.Done()
-		n := len(outs)
 		rr := 0
-		for v := range in {
+		for {
 			select {
 			case <-ctx.Done():
-			case outs[rr] <- v:
+				return
+			case v, ok := <-in:
+				if !ok {
+					return
+				}
+				select {
+				case outsSend[rr] <- v:
+				case <-ctx.Done():
+					return
+				}
+				rr = (rr + 1) % n
 			}
-			rr++
-			rr %= n
 		}
 	}(ctxWithC, outsSend)
 	go func() {
 		wg.Wait()
-		cancel()
 		for i := 0; i < len(outs); i++ {
 			close(outs[i])
 		}
