@@ -47,7 +47,7 @@ func fanOut[T any](
 				rr = (rr + 1) % n
 			}
 		}
-	}(ctxWithC, outsSend)
+	}(ctx, outsSend)
 	go func() {
 		wg.Wait()
 		for i := 0; i < len(outs); i++ {
