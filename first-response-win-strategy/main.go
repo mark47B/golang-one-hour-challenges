@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 )
 
 var ErrorNotFound = errors.New("Not Found")
@@ -29,7 +30,7 @@ func DistributedQuery(querier Querier, replicas []DatabaseHost) (string, error) 
 	}
 
 	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(5*time.Second))
 	defer cancel()
 
 	var wg sync.WaitGroup
@@ -38,7 +39,7 @@ func DistributedQuery(querier Querier, replicas []DatabaseHost) (string, error) 
 
 	for i := 0; i < len(replicas); i++ {
 		wg.Add(1)
-		go func(host DatabaseHost) {
+		go func(ctx context.Context, host DatabaseHost) {
 			defer wg.Done()
 
 			select {
@@ -55,7 +56,7 @@ func DistributedQuery(querier Querier, replicas []DatabaseHost) (string, error) 
 			case <-ctx.Done():
 				ch <- DistributedAnswer{Resp: resp, Err: ctx.Err()}
 			}
-		}(replicas[i])
+		}(ctx, replicas[i])
 	}
 
 	go func() {
