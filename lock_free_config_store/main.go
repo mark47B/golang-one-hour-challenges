@@ -29,7 +29,7 @@ func NewConfigStore(cfg *Config) *ConfigStore {
 	}
 	c := *cfg
 	s := &ConfigStore{}
-	s.cfg.Store(cfg)
+	s.cfg.Store(&c)
 	return s
 }
 
